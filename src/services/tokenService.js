@@ -1,10 +1,10 @@
 const axios = require("axios");
 const Token = require("../models/Token");
-const { TOKEN_INFO_API } = require("../constants");
+const { TOKEN_INFO_API, getChartAPI } = require("../constants");
 const ListedPairs = require("../models/ListedPairs");
 
 class TokenService {
-  async updateTokens(pairAddress, category) {
+  async updateTokenInfo(pairAddress, category) {
     try {
       console.log("running scheduled token update");
 
@@ -43,6 +43,38 @@ class TokenService {
     }
   }
 
+  async getChartByPairAddress(pairAddress) {
+    try {
+      // Fetch tokens from external API
+      // Replace this URL with your actual API endpoint
+
+      const token = await Token.findOne({ pairAddress });
+      if (!token) {
+        console.log("Token not found");
+        return null;
+      }
+
+      const API = getChartAPI(token.baseToken.address);
+
+      console.log("API", API);
+      const response = await axios.get(API);
+      const chartData = response.data;
+
+      console.log("chart data", chartData);
+
+      if (!chartData) {
+        console.log("Error fetching chart info");
+        return;
+      }
+
+      return chartData;
+    } catch (error) {
+      console.error("Error chart info:", error.message);
+
+      return null;
+    }
+  }
+
   async getTokens() {
     return Token.find().sort({ symbol: 1 });
   }
@@ -51,12 +83,13 @@ class TokenService {
     return ListedPairs.find().sort({ symbol: 1 });
   }
 
+  // run to update all listed pairs in the database
   async updateListedPairs() {
     // fetch all the listed tokens to track
     const pairs = await ListedPairs.find();
 
     for (const pair of pairs) {
-      await this.updateTokens(pair.pairAddress, pair.category);
+      await this.updateTokenInfo(pair.pairAddress, pair.category);
     }
   }
 }
